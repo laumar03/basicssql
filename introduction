@@ -1,0 +1,110 @@
+#Navigate through table
+#import phython package
+from google.cloud import bigquery
+#create "client"objet
+client=big.query.Client()
+
+#access data set from big query 
+# Construct a reference to the "hacker_news" dataset
+dataset_ref = client.dataset("hacker_news", project="bigquery-public-data")
+
+# API request - fetch the dataset
+dataset = client.get_dataset(dataset_ref)
+
+# List all the tables in the "hacker_news" dataset
+tables = list(client.list_tables(dataset))
+
+# Print names of all tables in the dataset (there are four!)
+for table in tables:  
+    print(table.table_id)
+
+
+# Construct a reference to the "full" table
+table_ref = dataset_ref.table("full")
+
+# API request - fetch the table#
+table = client.get_table(table_ref)
+
+# Print information on all the columns in the "full" table in the "hacker_news" dataset#
+table.schema
+
+# Preview the first five lines of the "full" table#
+client.list_rows(table, max_results=5).to_dataframe()
+
+#Preview the first five entries in the "by" column of the "full" table
+client.list_rows(table, selected_fields=table.schema[:1], max_results=5).to_dataframe()
+
+
+
+##SQL query
+#select every field in Name column
+queryName="""
+SELECT Name
+FROM `bigquery-public-data.petrecords.pets`
+"""
+
+#select specific information in the table 
+queryAnimal="""
+SELECT Name
+FROM `bigquery-public-data.petrecords.pets`
+WHERE Animal='Cat'
+"""
+
+# Set up the query
+query_job = client.query(queryAnimal)
+# API request - run the query, and return a pandas DataFrame
+animals = query_job.to_dataframe()
+
+#select multiple columns with a comma
+query="""
+SELECT X,Y
+FROM `bigquery-public-data.petrecords.pets`
+WHERE Y='Cat'
+"""
+#select all columns with a *
+
+# Query to get the score column from every row where the type column has value "job"
+query = """
+        SELECT score, title
+        FROM `bigquery-public-data.hacker_news.full`
+        WHERE type = "job" 
+        """
+
+# Create a QueryJobConfig object to estimate size of query without running it
+dry_run_config = bigquery.QueryJobConfig(dry_run=True)
+
+# API request - dry run query to estimate costs
+dry_run_query_job = client.query(query, job_config=dry_run_config)
+
+print("This query will process {} bytes.".format(dry_run_query_job.total_bytes_processed))
+
+# Only run the query if it's less than 1 MB
+ONE_MB = 1000*1000
+safe_config = bigquery.QueryJobConfig(maximum_bytes_billed=ONE_MB)
+
+# Set up the query (will only run if it's less than 1 MB)
+safe_query_job = client.query(query, job_config=safe_config)
+
+# API request - try to run the query, and return a pandas DataFrame
+safe_query_job.to_dataframe()
+
+#count function. contar cuantos hay dentro de una tabla
+query = """
+        SELECT COUNT (ID)
+        FROM `bigquery-public-data.hacker_news.full`
+        """
+#group by. agrupar por una categoria y se puede juntar con funcion count
+query = """
+        SELECT Animal, COUNT (ID)
+        FROM `bigquery-public-data.hacker_news.full`
+        GROUP BY Animal
+        """
+#Group by Having, agrupar por una condicion
+query = """
+        SELECT Animal, COUNT (ID)
+        FROM `bigquery-public-data.hacker_news.full`
+        GROUP BY Animal
+        HAVING COUNT(ID)>1
+        """
+
+
